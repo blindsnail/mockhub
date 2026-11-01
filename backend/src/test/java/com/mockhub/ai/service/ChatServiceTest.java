@@ -54,7 +54,13 @@ class ChatServiceTest {
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
-        when(callResponseSpec.content()).thenReturn(response);
+        when(callResponseSpec.chatResponse()).thenReturn(springAiResponse(response));
+    }
+
+    private static org.springframework.ai.chat.model.ChatResponse springAiResponse(String text) {
+        return new org.springframework.ai.chat.model.ChatResponse(List.of(
+                new org.springframework.ai.chat.model.Generation(
+                        new org.springframework.ai.chat.messages.AssistantMessage(text))));
     }
 
     private void stubEvalRunnerPassing() {
@@ -74,6 +80,29 @@ class ChatServiceTest {
         assertNotNull(response, "Response should not be null");
         assertEquals("Here are some upcoming concerts in New York...", response.message());
         assertNotNull(response.timestamp(), "Timestamp should be set");
+    }
+
+    @Test
+    @DisplayName("chat - given thinking block before answer - returns the answer, not the thinking")
+    void chat_givenThinkingBlockBeforeAnswer_returnsAnswerOnly() {
+        ChatRequest request = new ChatRequest("What concerts are in New York?", null);
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(requestSpec);
+        when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(callResponseSpec.chatResponse()).thenReturn(new org.springframework.ai.chat.model.ChatResponse(List.of(
+                new org.springframework.ai.chat.model.Generation(
+                        org.springframework.ai.chat.messages.AssistantMessage.builder()
+                                .content("We need to look up concerts first.")
+                                .properties(java.util.Map.of("signature", "sig"))
+                                .build()),
+                new org.springframework.ai.chat.model.Generation(
+                        new org.springframework.ai.chat.messages.AssistantMessage("Here are some concerts.")))));
+        stubEvalRunnerPassing();
+
+        ChatResponse response = chatService.chat(request, null);
+
+        assertEquals("Here are some concerts.", response.message());
     }
 
     @Test
@@ -192,7 +221,7 @@ class ChatServiceTest {
                     "ChatContext should be set during tool execution");
             return callResponseSpec;
         });
-        when(callResponseSpec.content()).thenReturn("OK");
+        when(callResponseSpec.chatResponse()).thenReturn(springAiResponse("OK"));
 
         chatService.chat(request, "ken@example.com");
 

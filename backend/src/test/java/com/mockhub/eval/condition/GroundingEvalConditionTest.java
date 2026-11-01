@@ -1,5 +1,7 @@
 package com.mockhub.eval.condition;
 
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,6 +10,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.CallResponseSpec;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 
 import com.mockhub.eval.dto.EvalContext;
 import com.mockhub.eval.dto.EvalResult;
@@ -36,7 +41,8 @@ class GroundingEvalConditionTest {
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
-        when(callResponseSpec.content()).thenReturn(response);
+        when(callResponseSpec.chatResponse()).thenReturn(
+                new ChatResponse(List.of(new Generation(new AssistantMessage(response)))));
     }
 
     @Test
@@ -68,6 +74,27 @@ class GroundingEvalConditionTest {
     void evaluate_givenGroundedResponse_returnsPass() {
         GroundingEvalCondition condition = new GroundingEvalCondition(chatClient, true);
         stubChatClient("{\"grounded\": true, \"issues\": []}");
+        EvalContext context = EvalContext.forChat("Tickets start at $50", "How much are tickets?");
+
+        EvalResult result = condition.evaluate(context);
+
+        assertTrue(result.passed());
+        assertEquals("grounding", result.conditionName());
+    }
+
+    @Test
+    @DisplayName("evaluate - given thinking block before the JSON verdict - parses the verdict")
+    void evaluate_givenThinkingBlockBeforeVerdict_parsesVerdict() {
+        GroundingEvalCondition condition = new GroundingEvalCondition(chatClient, true);
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(callResponseSpec.chatResponse()).thenReturn(new ChatResponse(List.of(
+                new Generation(AssistantMessage.builder()
+                        .content("We need to judge whether this is grounded.")
+                        .properties(java.util.Map.of("signature", "sig"))
+                        .build()),
+                new Generation(new AssistantMessage("{\"grounded\": true, \"issues\": []}")))));
         EvalContext context = EvalContext.forChat("Tickets start at $50", "How much are tickets?");
 
         EvalResult result = condition.evaluate(context);

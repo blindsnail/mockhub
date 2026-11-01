@@ -50,12 +50,12 @@ public class ChatService {
         }
         String aiResponse;
         try {
-            aiResponse = chatClient.prompt()
+            aiResponse = ChatResponseText.answerText(chatClient.prompt()
                     .user(userMessage)
                     .advisors(advisorSpec -> advisorSpec.param(
                             CONVERSATION_ID_KEY, conversationId))
                     .call()
-                    .content();
+                    .chatResponse());
         } finally {
             ChatContext.clear();
         }

@@ -17,6 +17,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.CallResponseSpec;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 
 import com.mockhub.ai.dto.RecommendationDto;
 import com.mockhub.buyerpreference.dto.BuyerPreferenceContextDto;
@@ -129,7 +132,8 @@ class RecommendationServiceTest {
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
-        when(callResponseSpec.content()).thenReturn(aiResponse);
+        when(callResponseSpec.chatResponse()).thenReturn(
+                new ChatResponse(List.of(new Generation(new AssistantMessage(aiResponse)))));
     }
 
     private void stubEvalRunnerPassing() {
@@ -354,6 +358,75 @@ class RecommendationServiceTest {
         assertEquals("Rock Festival", recommendations.get(0).eventName());
         assertEquals("Featured event", recommendations.get(0).reason());
         assertEquals(0.5, recommendations.get(0).relevanceScore());
+    }
+
+    @Test
+    @DisplayName("getRecommendations - given reasoning text before the JSON array - parses the array")
+    void getRecommendations_givenReasoningTextBeforeJson_parsesRankedResults() {
+        List<Event> events = List.of(
+                createTestEvent(1L, "Rock Festival", "rock-festival", "MSG", "New York"),
+                createTestEvent(2L, "Jazz Night", "jazz-night", "Blue Note", "New York")
+        );
+        when(eventRepository.findFeaturedEvents()).thenReturn(events);
+        stubChatClient("""
+                We need answer only JSON array, all 2 events. Let's rank them.
+
+                [{"eventId": 2, "relevanceScore": 0.9, "reason": "Intimate venue"},
+                 {"eventId": 1, "relevanceScore": 0.6, "reason": "Big crowd"}]
+                """);
+        stubEvalRunnerPassing();
+
+        List<RecommendationDto> recommendations = recommendationService.getRecommendations(null);
+
+        assertEquals(2, recommendations.size());
+        assertEquals("Jazz Night", recommendations.get(0).eventName());
+        assertEquals("Intimate venue", recommendations.get(0).reason());
+        assertEquals(0.9, recommendations.get(0).relevanceScore());
+    }
+
+    @Test
+    @DisplayName("getRecommendations - given response with no JSON array - returns fallback recommendations")
+    void getRecommendations_givenResponseWithoutJsonArray_returnsFallbackRecommendations() {
+        List<Event> events = List.of(
+                createTestEvent(1L, "Rock Festival", "rock-festival", "MSG", "New York")
+        );
+        when(eventRepository.findFeaturedEvents()).thenReturn(events);
+        stubChatClient("We need to think about this but never produce an answer.");
+        stubEvalRunnerPassing();
+
+        List<RecommendationDto> recommendations = recommendationService.getRecommendations(null);
+
+        assertEquals(1, recommendations.size());
+        assertEquals("Featured event", recommendations.get(0).reason());
+        assertEquals(0.5, recommendations.get(0).relevanceScore());
+    }
+
+    @Test
+    @DisplayName("extractJsonArray - given clean JSON array - returns it unchanged")
+    void extractJsonArray_givenCleanArray_returnsUnchanged() {
+        assertEquals("[{\"eventId\": 1}]", RecommendationService.extractJsonArray("  [{\"eventId\": 1}]\n"));
+    }
+
+    @Test
+    @DisplayName("extractJsonArray - given markdown fence around array - returns only the array")
+    void extractJsonArray_givenMarkdownFence_returnsArrayOnly() {
+        String response = "```json\n[{\"eventId\": 1}]\n```";
+
+        assertEquals("[{\"eventId\": 1}]", RecommendationService.extractJsonArray(response));
+    }
+
+    @Test
+    @DisplayName("extractJsonArray - given brackets in reasoning text - skips them and finds the real array")
+    void extractJsonArray_givenBracketsInReasoning_skipsToRealArray() {
+        String response = "Event IDs [1, 2] and a note [see below] first. [{\"eventId\": 1}] done";
+
+        assertEquals("[{\"eventId\": 1}]", RecommendationService.extractJsonArray(response));
+    }
+
+    @Test
+    @DisplayName("extractJsonArray - given no array - returns stripped response")
+    void extractJsonArray_givenNoArray_returnsStrippedResponse() {
+        assertEquals("no json here", RecommendationService.extractJsonArray("  no json here  "));
     }
 
     @Test

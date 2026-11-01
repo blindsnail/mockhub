@@ -87,10 +87,10 @@ public class PricePredictionService {
                 historyContext.isEmpty() ? "No history available" : historyContext
         );
 
-        String aiResponse = chatClient.prompt()
+        String aiResponse = ChatResponseText.answerText(chatClient.prompt()
                 .user(prompt)
                 .call()
-                .content();
+                .chatResponse());
 
         PricePredictionDto prediction = parsePrediction(aiResponse, eventSlug, event.getMinPrice());
 

@@ -14,6 +14,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.CallResponseSpec;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 
 import com.mockhub.ai.dto.PricePredictionDto;
@@ -57,6 +60,10 @@ class PricePredictionServiceTest {
     @Mock
     private CallResponseSpec callResponseSpec;
 
+    private static ChatResponse aiResponse(String text) {
+        return new ChatResponse(List.of(new Generation(new AssistantMessage(text))));
+    }
+
     private PricePredictionService pricePredictionService;
     private Event testEvent;
 
@@ -98,10 +105,10 @@ class PricePredictionServiceTest {
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
-        when(callResponseSpec.content()).thenReturn(
+        when(callResponseSpec.chatResponse()).thenReturn(aiResponse(
                 """
                 {"predictedPrice": 82.00, "trend": "RISING", "confidence": 0.72}
-                """);
+                """));
 
         stubEvalRunnerPassing();
 
@@ -126,10 +133,10 @@ class PricePredictionServiceTest {
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
-        when(callResponseSpec.content()).thenReturn(
+        when(callResponseSpec.chatResponse()).thenReturn(aiResponse(
                 """
                 {"predictedPrice": 50000.00, "trend": "RISING", "confidence": 0.99}
-                """);
+                """));
 
         when(evalRunner.evaluate(any(EvalContext.class)))
                 .thenReturn(new EvalSummary(List.of(

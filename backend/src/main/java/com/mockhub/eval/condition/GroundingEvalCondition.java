@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mockhub.ai.service.ChatResponseText;
 import com.mockhub.eval.EvalCondition;
 import com.mockhub.eval.dto.EvalContext;
 import com.mockhub.eval.dto.EvalResult;
@@ -51,10 +52,10 @@ public class GroundingEvalCondition implements EvalCondition {
                     + "\n\nAssistant response: " + context.aiResponse()
                     + "\n\nIs this response grounded in real data?";
 
-            String response = evalJudgeChatClient.prompt()
+            String response = ChatResponseText.answerText(evalJudgeChatClient.prompt()
                     .user(prompt)
                     .call()
-                    .content();
+                    .chatResponse());
 
             JsonNode root = OBJECT_MAPPER.readTree(response);
             boolean grounded = root.get("grounded").asBoolean();

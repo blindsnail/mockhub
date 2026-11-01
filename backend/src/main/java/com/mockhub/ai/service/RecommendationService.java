@@ -19,7 +19,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mockhub.ai.dto.RecommendationDto;
 import com.mockhub.ai.dto.RecommendationsResponse;
@@ -89,10 +91,10 @@ public class RecommendationService {
 
         List<RecommendationDto> recommendations;
         try {
-            String aiResponse = chatClient.prompt()
+            String aiResponse = ChatResponseText.answerText(chatClient.prompt()
                     .user(prompt)
                     .call()
-                    .content();
+                    .chatResponse());
 
             recommendations = parseRecommendations(aiResponse, events, spotifyMatchedIds);
         } catch (Exception e) {
@@ -287,7 +289,7 @@ public class RecommendationService {
                                                           Set<Long> spotifyMatchedIds) {
         try {
             List<Map<String, Object>> ranked = MAPPER.readValue(
-                    aiResponse.strip(), new TypeReference<>() {});
+                    extractJsonArray(aiResponse), new TypeReference<>() {});
 
             Map<Long, Event> eventMap = events.stream()
                     .collect(Collectors.toMap(Event::getId, Function.identity()));
@@ -317,6 +319,42 @@ public class RecommendationService {
         } catch (Exception e) {
             log.warn("Failed to parse AI recommendations response: {}", aiResponse, e);
             return buildFallbackRecommendations(events, spotifyMatchedIds);
+        }
+    }
+
+    /**
+     * Reasoning models may put their thinking or markdown fences around the JSON array. Try each '[' as a
+     * start and parse through the last ']', returning the first slice that is an array of objects.
+     * Falls back to the stripped response so the caller's parse error reports the original text.
+     */
+    static String extractJsonArray(String response) {
+        String stripped = response.strip();
+        int end = stripped.lastIndexOf(']');
+        int start = stripped.indexOf('[');
+        while (start >= 0 && start < end) {
+            String candidate = stripped.substring(start, end + 1);
+            if (isArrayOfObjects(candidate)) {
+                return candidate;
+            }
+            start = stripped.indexOf('[', start + 1);
+        }
+        return stripped;
+    }
+
+    private static boolean isArrayOfObjects(String json) {
+        try {
+            JsonNode node = MAPPER.readTree(json);
+            if (!node.isArray()) {
+                return false;
+            }
+            for (JsonNode element : node) {
+                if (!element.isObject()) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (JsonProcessingException e) {
+            return false;
         }
     }
 
