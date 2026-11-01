@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 import com.mockhub.auth.entity.User;
 import com.mockhub.event.entity.Event;
@@ -34,8 +35,9 @@ public class TicketPdfService {
 
     private static final Logger log = LoggerFactory.getLogger(TicketPdfService.class);
 
+    // Locale.US: PDFBox's standard Helvetica font has no CJK glyphs, so a localized weekday would fail rendering.
     private static final DateTimeFormatter EVENT_DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy 'at' h:mm a");
+            DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy 'at' h:mm a", Locale.US);
 
     private static final ZoneId DISPLAY_ZONE = ZoneId.of("America/New_York");
 

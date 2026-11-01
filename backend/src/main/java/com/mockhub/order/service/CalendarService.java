@@ -3,6 +3,7 @@ package com.mockhub.order.service;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -64,7 +65,7 @@ public class CalendarService {
         desc.append("\\nTotal: $").append(order.getTotal().toPlainString());
 
         if (event.getDoorsOpenAt() != null) {
-            String doorsTime = DateTimeFormatter.ofPattern("h:mm a")
+            String doorsTime = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
                     .withZone(ZoneOffset.UTC)
                     .format(event.getDoorsOpenAt());
             desc.append("\\nDoors open at ").append(doorsTime).append(" UTC");

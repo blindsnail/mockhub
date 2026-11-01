@@ -123,6 +123,20 @@ class TicketPdfServiceTest {
     }
 
     @Test
+    void generateTicketPdf_givenNonEnglishDefaultLocale_stillRendersPdf() {
+        java.util.Locale original = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.SIMPLIFIED_CHINESE);
+
+            byte[] result = ticketPdfService.generateTicketPdf(orderItem);
+
+            assertThat(result).isNotEmpty();
+        } finally {
+            java.util.Locale.setDefault(original);
+        }
+    }
+
+    @Test
     void generateTicketPdf_givenOrderItem_callsSigningServiceWithCorrectArgs() {
         ticketPdfService.generateTicketPdf(orderItem);
 

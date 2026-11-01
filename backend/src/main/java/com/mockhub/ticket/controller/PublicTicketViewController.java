@@ -4,6 +4,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +42,7 @@ public class PublicTicketViewController {
     private static final Logger log = LoggerFactory.getLogger(PublicTicketViewController.class);
 
     private static final DateTimeFormatter EVENT_DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy 'at' h:mm a");
+            DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy 'at' h:mm a", Locale.US);
     private static final ZoneId DISPLAY_ZONE = ZoneId.of("America/New_York");
 
     private final TicketSigningService ticketSigningService;

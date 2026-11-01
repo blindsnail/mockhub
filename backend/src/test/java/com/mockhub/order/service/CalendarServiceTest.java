@@ -117,6 +117,22 @@ class CalendarServiceTest {
     }
 
     @Test
+    @DisplayName("generateIcs - given non-English default locale - doors time still uses AM/PM")
+    void generateIcs_givenNonEnglishDefaultLocale_doorsTimeUsesEnglishMarkers() {
+        java.util.Locale original = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.SIMPLIFIED_CHINESE);
+
+            String ics = calendarService.generateIcs(testOrder);
+
+            assertTrue(ics.matches("(?s).*Doors open at \\d{1,2}:\\d{2} (AM|PM) UTC.*"),
+                    "Doors time should use English AM/PM markers");
+        } finally {
+            java.util.Locale.setDefault(original);
+        }
+    }
+
+    @Test
     @DisplayName("generateIcs - includes order number and ticket details in DESCRIPTION")
     void generateIcs_includesOrderDetailsInDescription() {
         String ics = calendarService.generateIcs(testOrder);
