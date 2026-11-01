@@ -2,8 +2,9 @@ spring:
   ai:
     anthropic:
       api-key: ${ANTHROPIC_API_KEY}
+      base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
       chat:
-        model: claude-sonnet-4-6
+        model: ${ANTHROPIC_CHAT_MODEL:claude-sonnet-4-6}
 
   # Override base exclusions: keep Anthropic, exclude everything else
   autoconfigure:

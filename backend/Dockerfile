@@ -1,4 +1,5 @@
 FROM eclipse-temurin:25-jdk-alpine AS build
+ARG JAVA_TOOL_OPTIONS
 WORKDIR /app
 COPY gradle/ gradle/
 COPY gradlew build.gradle* settings.gradle* ./

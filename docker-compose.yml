@@ -16,9 +16,17 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
     environment:
-      SPRING_PROFILES_ACTIVE: dev,stripe
+      SPRING_PROFILES_ACTIVE: dev,stripe,ai-anthropic
+      # Host-side names are MOCKHUB_-prefixed on purpose: ANTHROPIC_* are also set by other tools
+      # (e.g. Claude Code points ANTHROPIC_BASE_URL at a local proxy) and would leak into the container.
+      ANTHROPIC_API_KEY: ${MOCKHUB_ANTHROPIC_API_KEY:?Set MOCKHUB_ANTHROPIC_API_KEY in .env (or drop ai-anthropic from SPRING_PROFILES_ACTIVE)}
+      ANTHROPIC_BASE_URL: ${MOCKHUB_ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      ANTHROPIC_CHAT_MODEL: ${MOCKHUB_ANTHROPIC_CHAT_MODEL:-claude-sonnet-4-6}
       DB_HOST: postgres
       DB_PASSWORD: mockhub_dev
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}

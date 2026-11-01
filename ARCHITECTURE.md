@@ -745,6 +745,8 @@ Naming convention: `methodName_givenCondition_expectedResult`
 | `JWT_SECRET` | Yes | JWT signing key (min 256 bits, valid Base64) |
 | `TICKET_SIGNING_SECRET` | Yes | HMAC-SHA256 key for ticket/order-view JWTs (valid Base64) |
 | `ANTHROPIC_API_KEY` | For AI | Anthropic API key |
+| `ANTHROPIC_BASE_URL` | No | Anthropic-compatible endpoint (default `https://api.anthropic.com`) |
+| `ANTHROPIC_CHAT_MODEL` | No | Chat model name (default `claude-sonnet-4-6`) |
 | `STRIPE_SECRET_KEY` | For Stripe | Stripe test secret key |
 | `TWILIO_ACCOUNT_SID` | For SMS | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | For SMS | Twilio auth token |
@@ -762,6 +764,10 @@ Naming convention: `methodName_givenCondition_expectedResult`
 | `MCP_API_KEY` | For ACP | API key for ACP endpoints (MCP uses OAuth2 when `mcp-oauth2` profile active) |
 | `MCP_OAUTH2_ISSUER_URI` | For MCP OAuth2 | OAuth2 issuer URI (must match public URL, e.g., `https://mockhub.kousenit.com`) |
 | `SPRING_PROFILES_ACTIVE` | Yes | Profile combination (e.g., `dev,ai-anthropic`) |
+
+With `docker compose`, set the three AI values as `MOCKHUB_ANTHROPIC_API_KEY`, `MOCKHUB_ANTHROPIC_BASE_URL` and
+`MOCKHUB_ANTHROPIC_CHAT_MODEL` (shell or `.env`). Compose maps them to the `ANTHROPIC_*` names inside the container,
+so other tools that set `ANTHROPIC_*` in your shell cannot leak into it.
 
 ### CI (GitHub Actions)
 
