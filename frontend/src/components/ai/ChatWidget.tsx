@@ -1,60 +1,74 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { MessageCircle, Send, X } from 'lucide-react';
+import Markdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useChat } from '@/hooks/use-ai';
 import type { ChatMessage } from '@/types/ai';
 
 /**
- * Renders text with markdown links converted to clickable React Router Links.
- * Handles [text](url) patterns, using internal Links for relative URLs
- * and anchor tags for external URLs.
+ * Maps markdown elements to Tailwind-styled tags sized for the narrow chat bubble.
+ * Relative links become React Router Links; absolute links open in a new tab.
+ * react-markdown's default urlTransform already strips javascript: URLs.
+ * A leading "//" is a protocol-relative external URL, not an app route.
+ */
+const markdownComponents: Components = {
+  a({ href, children }) {
+    if (href?.startsWith('/') && !href.startsWith('//')) {
+      return (
+        <Link to={href} className="font-medium text-primary underline">
+          {children}
+        </Link>
+      );
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-primary underline"
+      >
+        {children}
+      </a>
+    );
+  },
+  p: ({ children }) => <p className="my-1 first:mt-0 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="my-1 list-disc pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="my-1 list-decimal pl-5">{children}</ol>,
+  h1: ({ children }) => <p className="my-1 font-semibold">{children}</p>,
+  h2: ({ children }) => <p className="my-1 font-semibold">{children}</p>,
+  h3: ({ children }) => <p className="my-1 font-semibold">{children}</p>,
+  code: ({ children }) => (
+    <code className="rounded bg-background/60 px-1 py-0.5 text-xs">{children}</code>
+  ),
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto">
+      <table className="w-full border-collapse text-xs">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border-b px-2 py-1 text-left font-semibold whitespace-nowrap">{children}</th>
+  ),
+  td: ({ children }) => <td className="border-b px-2 py-1 align-top">{children}</td>,
+};
+
+/**
+ * Renders an assistant reply as markdown (bold, lists, tables, links).
+ * Images are dropped: the model reads user-controlled text, and an image URL would make the
+ * browser send a request (carrying anything the model put in the query string) with no click.
  */
 function MessageContent({ content }: Readonly<{ content: string }>) {
-  const linkRegex = /\[([^\]]{1,500})\]\(([^)]{1,2000})\)/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = linkRegex.exec(content)) !== null) {
-    // Add text before the link
-    if (match.index > lastIndex) {
-      parts.push(content.slice(lastIndex, match.index));
-    }
-
-    const linkText = match[1];
-    const linkUrl = match[2];
-
-    if (linkUrl.startsWith('/')) {
-      parts.push(
-        <Link key={match.index} to={linkUrl} className="font-medium text-primary underline">
-          {linkText}
-        </Link>,
-      );
-    } else {
-      parts.push(
-        <a
-          key={match.index}
-          href={linkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-primary underline"
-        >
-          {linkText}
-        </a>,
-      );
-    }
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex));
-  }
-
-  return <>{parts}</>;
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      components={markdownComponents}
+      disallowedElements={['img']}
+    >
+      {content}
+    </Markdown>
+  );
 }
 
 /**
@@ -220,7 +234,7 @@ export function ChatWidget() {
                   >
                     <div
                       data-testid={msg.role === 'user' ? 'user-message' : 'ai-message'}
-                      className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                      className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
                         msg.role === 'user'
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted text-foreground'

