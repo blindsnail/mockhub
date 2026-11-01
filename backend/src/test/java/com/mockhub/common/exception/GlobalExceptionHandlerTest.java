@@ -1,5 +1,9 @@
 package com.mockhub.common.exception;
 
+import com.anthropic.core.JsonValue;
+import com.anthropic.core.http.Headers;
+import com.anthropic.errors.PermissionDeniedException;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -182,5 +186,36 @@ class GlobalExceptionHandlerTest {
         assertEquals("Conflict", body.getTitle());
         assertEquals("This item was modified by another transaction. Please try again.",
                 body.getDetail());
+    }
+
+    @Test
+    @DisplayName("handleAiProviderAuth - given provider 401 - returns 503 without exposing provider details")
+    void handleAiProviderAuth_givenUnauthorizedFromProvider_returns503() {
+        com.anthropic.errors.UnauthorizedException ex = com.anthropic.errors.UnauthorizedException.builder()
+                .headers(Headers.builder().build())
+                .body(JsonValue.from("invalid x-api-key"))
+                .build();
+
+        ResponseEntity<ProblemDetail> response = handler.handleAiProviderAuth(ex);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        ProblemDetail body = response.getBody();
+        assertNotNull(body);
+        assertEquals(503, body.getStatus());
+        assertEquals("Service Unavailable", body.getTitle());
+        assertEquals("AI features are temporarily unavailable", body.getDetail());
+    }
+
+    @Test
+    @DisplayName("handleAiProviderAuth - given provider 403 - returns 503")
+    void handleAiProviderAuth_givenPermissionDeniedFromProvider_returns503() {
+        PermissionDeniedException ex = PermissionDeniedException.builder()
+                .headers(Headers.builder().build())
+                .body(JsonValue.from("forbidden"))
+                .build();
+
+        ResponseEntity<ProblemDetail> response = handler.handleAiProviderAuth(ex);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
     }
 }

@@ -3,6 +3,8 @@ package com.mockhub.common.exception;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.anthropic.errors.AnthropicServiceException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,6 +95,24 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND, "Resource not found");
         problem.setTitle("Not Found");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    // Fully qualified: com.anthropic.errors.UnauthorizedException shares its simple name with the
+    // domain UnauthorizedException in this package.
+    @ExceptionHandler({
+            com.anthropic.errors.UnauthorizedException.class,
+            com.anthropic.errors.PermissionDeniedException.class})
+    public ResponseEntity<ProblemDetail> handleAiProviderAuth(AnthropicServiceException ex) {
+        // The AI provider rejected our credentials (empty, wrong, or expired key). That is a
+        // server configuration problem, not a client error, and the AI features are effectively
+        // off, so report 503 like the "no provider configured" case instead of a generic 500.
+        log.error("AI provider rejected the API key (HTTP {}). Check MOCKHUB_ANTHROPIC_API_KEY / ANTHROPIC_API_KEY.",
+                ex.statusCode());
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE, "AI features are temporarily unavailable");
+        problem.setTitle("Service Unavailable");
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
     }
 
     @ExceptionHandler(Exception.class)
